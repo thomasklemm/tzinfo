@@ -1,4 +1,4 @@
-name: Tests
+name: Signed transition differential
 
 on: [push, pull_request]
 
@@ -13,6 +13,11 @@ jobs:
         name_suffix: ['']
         experimental: [false]
         include:
+          - os: windows-2022
+            ruby: '2.3'
+            architecture: x86
+            name_suffix: ' (x86)'
+            experimental: false
           - os: ubuntu-24.04
             ruby: head
             architecture: default
@@ -43,6 +48,8 @@ jobs:
     continue-on-error: ${{ matrix.experimental }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 3
       - if: (startsWith(matrix.ruby, 'jruby-9.1') || startsWith(matrix.ruby, 'jruby-9.2')) && startsWith(matrix.os, 'ubuntu-')
         uses: philr/setup-ruby@legacy-v1
         with:
@@ -53,10 +60,18 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
+          architecture: ${{ matrix.architecture }}
           bundler-cache: true
       - run: ruby --version
       - run: gem --version
       - run: bundle --version
-      - run: bundle exec rake test
+      - name: Compare the exact refreshed reader with master
+        shell: bash
+        run: |
+          git diff --exit-code 57056ddd7f46f9c292e46687821636e812102c85 -- lib test Gemfile tzinfo.gemspec
+          git show 1207d6098d7f4a9f294a40801154990850f09bf1:lib/tzinfo/data_sources/zoneinfo_reader.rb > baseline-reader.rb
+          BASELINE_READER=baseline-reader.rb bundle exec ruby signed-check.rb > baseline.json
+          bundle exec ruby signed-check.rb > head.json
+          ruby -e "abort 'Differential mismatch' unless File.binread('baseline.json') == File.binread('head.json'); puts 'PASS: identical baseline/head results'"
         env:
-          TESTOPTS: --verbose
+          TZINFO_SOURCE: .
