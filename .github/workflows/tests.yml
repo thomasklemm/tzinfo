@@ -1,70 +1,22 @@
-name: Signed transition differential
+name: Signed transition differential on Windows x86
 
 on: [push, pull_request]
 
 jobs:
   test:
-    name: ${{ matrix.ruby }} on ${{ matrix.os }}${{ matrix.name_suffix }}
-    strategy:
-      matrix:
-        os: [ubuntu-24.04, windows-2022]
-        ruby: ['2.3', '2.4', '2.5', '2.6', '2.7', '3.0', '3.1', '3.2', '3.3', '3.4', '4.0', jruby-9.1, jruby-9.2, jruby-9.3, jruby-9.4, jruby-10.0, jruby-10.1]
-        architecture: [default]
-        name_suffix: ['']
-        experimental: [false]
-        include:
-          - os: windows-2022
-            ruby: '2.3'
-            architecture: x86
-            name_suffix: ' (x86)'
-            experimental: false
-          - os: ubuntu-24.04
-            ruby: head
-            architecture: default
-            name_suffix: ' (experimental)'
-            experimental: true
-          - os: ubuntu-24.04
-            ruby: jruby-head
-            architecture: default
-            name_suffix: ' (experimental)'
-            experimental: true
-          - os: windows-2022
-            ruby: head
-            architecture: default
-            name_suffix: ' (experimental)'
-            experimental: true
-          - os: windows-2022
-            ruby: jruby-head
-            architecture: default
-            name_suffix: ' (experimental)'
-            experimental: true
-          - os: ubuntu-24.04
-            ruby: truffleruby-40
-            architecture: default
-            name_suffix: ' (experimental)'
-            experimental: true
-      fail-fast: false
-    runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.experimental }}
+    name: MRI 2.3 on Windows, verified 32-bit
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 3
-      - if: (startsWith(matrix.ruby, 'jruby-9.1') || startsWith(matrix.ruby, 'jruby-9.2')) && startsWith(matrix.os, 'ubuntu-')
-        uses: philr/setup-ruby@legacy-v1
+          fetch-depth: 0
+      - uses: philr/setup-ruby@legacy-v1
         with:
-          ruby-version: ${{ matrix.ruby }}
-          architecture: ${{ matrix.architecture }}
-          bundler-cache: true
-      - if: ${{ !((startsWith(matrix.ruby, 'jruby-9.1') || startsWith(matrix.ruby, 'jruby-9.2')) && startsWith(matrix.os, 'ubuntu-')) }}
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: ${{ matrix.ruby }}
-          architecture: ${{ matrix.architecture }}
+          ruby-version: '2.3'
+          architecture: x86
           bundler-cache: true
       - run: ruby --version
-      - run: gem --version
-      - run: bundle --version
+      - run: ruby -e "abort 'Not 32-bit Ruby' unless [0].pack('J').bytesize == 4"
       - name: Compare the exact refreshed reader with master
         shell: bash
         run: |
